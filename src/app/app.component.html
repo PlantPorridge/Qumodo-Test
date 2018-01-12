@@ -1,20 +1,89 @@
-<!--The content below is only a placeholder and can be replaced.-->
-<div style="text-align:center">
-  <h1>
-    Welcome to {{title}}!
-  </h1>
-  <img width="300" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNTAgMjUwIj4KICAgIDxwYXRoIGZpbGw9IiNERDAwMzEiIGQ9Ik0xMjUgMzBMMzEuOSA2My4ybDE0LjIgMTIzLjFMMTI1IDIzMGw3OC45LTQzLjcgMTQuMi0xMjMuMXoiIC8+CiAgICA8cGF0aCBmaWxsPSIjQzMwMDJGIiBkPSJNMTI1IDMwdjIyLjItLjFWMjMwbDc4LjktNDMuNyAxNC4yLTEyMy4xTDEyNSAzMHoiIC8+CiAgICA8cGF0aCAgZmlsbD0iI0ZGRkZGRiIgZD0iTTEyNSA1Mi4xTDY2LjggMTgyLjZoMjEuN2wxMS43LTI5LjJoNDkuNGwxMS43IDI5LjJIMTgzTDEyNSA1Mi4xem0xNyA4My4zaC0zNGwxNy00MC45IDE3IDQwLjl6IiAvPgogIDwvc3ZnPg==">
-</div>
-<h2>Here are some links to help you start: </h2>
-<ul>
-  <li>
-    <h2><a target="_blank" rel="noopener" href="https://angular.io/tutorial">Tour of Heroes</a></h2>
-  </li>
-  <li>
-    <h2><a target="_blank" rel="noopener" href="https://github.com/angular/angular-cli/wiki">CLI Documentation</a></h2>
-  </li>
-  <li>
-    <h2><a target="_blank" rel="noopener" href="https://blog.angular.io/">Angular blog</a></h2>
-  </li>
-</ul>
+<div id="content">
 
+    <form (ngSubmit)="onSubmit()" #inputForm="ngForm">
+        <div class="form-group">
+            <label for="name">Name</label>
+            <input type="text" class="form-control" id="name" name="name" required [(ngModel)]="formModel.name">
+        </div>
+        <div class="form-group">
+            <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" name="owner" id="user" value="user" [ngModel]="formModel.ownerType" (ngModelChange)="ownerTypeChange($event)">
+                <label class="form-check-label" for="user">User</label>
+            </div>
+            <div class="form-check form-check-inline">
+                <input class="form-check-input" type="radio" name="owner" id="organisation" value="organisation" [ngModel]="formModel.ownerType"
+                    (ngModelChange)="ownerTypeChange($event)">
+                <label class="form-check-label" for="organisation">Organisation</label>
+            </div>
+        </div>
+
+        <div *ngIf="formModel.ownerType == 'user'">
+            <div class="form-group">
+                <label for="name">Sort Term</label>
+                <select class="form-control" id="sort-term" [(ngModel)]="formModel.sortTerm" name="sort-term">
+                    <option *ngFor="let term of userSortTerms" [ngValue]="term">{{term.name}}</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="direction" id="ascending" value="asc" [(ngModel)]="formModel.sortDirection">
+                    <label class="form-check-label" for="ascending">Ascending</label>
+                </div>
+                <div class="form-check form-check-inline">
+                    <input class="form-check-input" type="radio" name="direction" id="descending" value="desc" [(ngModel)]="formModel.sortDirection">
+                    <label class="form-check-label" for="descending">Descending</label>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="name">Filter Type</label>
+            <select class="form-control" id="type" required [(ngModel)]="formModel.filterType" name="type">
+                <option *ngFor="let type of availableFilterTypes" [ngValue]="type">{{type.name}}</option>
+            </select>
+        </div>
+
+        <div class="form-submit">
+            <button type="submit" class="btn btn-success submit" [disabled]="!inputForm.form.valid">Get Repos</button>
+        </div>
+    </form>
+
+    <div class="table-responsive">
+        <table class="table">
+            <caption>List of Repos</caption>
+            <thead>
+                <tr>
+                    <th *ngFor="let column of columns" id="{{column.id}}" scope="col" (click)="sort(column)">{{column.header}}
+                        <span *ngIf="sortedColumn == column">
+                            <span *ngIf="sortedState == 'asc'">ASC</span>
+                            <span *ngIf="sortedState == 'desc'">DESC</span>
+                        </span>
+                    </th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr *ngFor="let result of results">
+                    <td *ngFor="let column of columns">
+                        <span *ngIf="column.type == 'string'">{{result[column.id]}}</span>
+                        <span *ngIf="column.type == 'date'">{{result[column.id] | date:'short'}}</span>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <nav>
+        <ul class="pagination">
+            <li class="page-item" [ngClass]="{'disabled': activePage<=1}" (click)="selectPage(activePage-1)">
+                <a class="page-link" href="#">Previous</a>
+            </li>
+            <li *ngFor="let i of numberOfPages | iterate" class="page-item" [ngClass]="{'active': activePage==i}" (click)="selectPage(i)">
+                <a class="page-link" href="#">{{i}}</a>
+            </li>
+            <li class="page-item" [ngClass]="{'disabled': activePage>=numberOfPages}" (click)="selectPage(activePage+1)">
+                <a class="page-link" href="#">Next</a>
+            </li>
+        </ul>
+    </nav>
+
+</div>

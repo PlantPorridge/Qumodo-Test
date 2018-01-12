@@ -1,0 +1,36 @@
+:host {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+:host #content {
+    display: flex;
+    flex-grow: 1;
+    flex-direction: column;
+    max-width: 750px;
+}
+
+form {
+    margin: 10px 0px;
+}
+
+.form-group > label {
+    font-weight: 600;
+}
+
+.form-submit {
+    text-align: center;
+}
+
+thead th {
+    cursor: pointer;
+}
+
+.page-item.disabled {
+    pointer-events:none;
+}
+
+.pagination {
+    justify-content: center;
+}
