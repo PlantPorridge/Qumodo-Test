@@ -62,10 +62,10 @@
                 </tr>
             </thead>
             <tbody>
-                <tr *ngFor="let result of results">
+                <tr *ngFor="let repo of repos">
                     <td *ngFor="let column of columns">
-                        <span *ngIf="column.type == 'string'">{{result[column.id]}}</span>
-                        <span *ngIf="column.type == 'date'">{{result[column.id] | date:'short'}}</span>
+                        <span *ngIf="column.type == 'string'">{{repo[column.id]}}</span>
+                        <span *ngIf="column.type == 'date'">{{repo[column.id] | date:'short'}}</span>
                     </td>
                 </tr>
             </tbody>

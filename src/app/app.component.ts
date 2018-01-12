@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { Http, Response } from '@angular/http';
+import { Http, Response, Headers } from '@angular/http';
 import { Observable } from "rxjs";
 
 @Component({
@@ -15,13 +15,21 @@ export class AppComponent implements OnInit {
     this.setAvailableFilterTypes();
   }
 
+  /**
+   * Columns we wish to show for each returned repo.
+   * Adding a new column instance here will add it to the grid.
+   */
   columns: Column[] = [
-    new Column('full_name', 'string', 'Name', 'full_name'),
-    new Column('created_at', 'date', 'Created At', 'created'),
-    new Column('updated_at', 'date', 'Updated At', 'updated'),
-    new Column('pushed_at', 'date', 'Pushed At', 'pushed')
+    new Column('full_name', 'string', 'Name'),
+    new Column('created_at', 'date', 'Created At'),
+    new Column('updated_at', 'date', 'Updated At'),
+    new Column('pushed_at', 'date', 'Pushed At'),
   ]
 
+  /**
+   * User repo sort terms allowed by the github api.
+   * Note: Organisation repo sorting is not provided by the api.
+   */
   userSortTerms: FilterType[] = [
     new FilterType('', ''),
     new FilterType('Full Name', 'full_name'),    
@@ -30,12 +38,18 @@ export class AppComponent implements OnInit {
     new FilterType('Pushed', 'pushed')
   ]
 
+  /**
+   * User repo filter types allowed by the github api.
+   */
   userFilterTypes: FilterType[] = [
     new FilterType('All', 'all'),
     new FilterType('Owner', 'owner'),
     new FilterType('Member', 'member')
   ]
 
+  /**
+   * Organisation repo filter types allowed by the github api.
+   */
   orgFilterTypes: FilterType[] = [
     new FilterType('All', 'all'),
     new FilterType('Public', 'public'),
@@ -45,12 +59,13 @@ export class AppComponent implements OnInit {
     new FilterType('Member', 'member')
   ]
 
-  baseUrl = 'https://api.github.com/';
-  sortText: string = '';
-  results: IGithubRepo[];
+  private baseUrl: string = 'https://api.github.com/';
+  private submittedForm: FormModel;  
+
+  repos: IGithubRepo[];
+  availableFilterTypes: FilterType[];  
   numberOfPages: number = 0;
   activePage: number = 1;
-  user: string = 'andygjenkins';
   formModel: FormModel = { 
     name: '', 
     ownerType: RepoOwnerType.USER, 
@@ -58,73 +73,77 @@ export class AppComponent implements OnInit {
     sortTerm: null,
     filterType: null 
   };
-  submittedForm: FormModel;
-  availableFilterTypes: FilterType[];
 
   onSubmit() {
-    console.log(this.formModel);
     this.submittedForm = Object.assign({}, this.formModel);
+
+    /* Ensure we don't send an unnecessary sort parameter when working with organisations */
+    if(this.formModel.ownerType == 'organisation') this.submittedForm.sortTerm = null; 
+    
     this.activePage = 1;
-    this.getRepos();
+    this.getRepos(this.submittedForm);
   }
 
-  getRepos() {
-    if (!this.submittedForm) return;
+  ownerTypeChange(newOwnerType: RepoOwnerType) {
+    this.formModel.ownerType = newOwnerType;
+    this.setAvailableFilterTypes();
+  }
 
-    let url = this.getUrl();
+  selectPage(newPage: number) {
+    this.activePage = newPage;
+    this.getRepos(this.submittedForm);
+  }
+
+  private getRepos(model: FormModel) {
+    if (!model) return;
+
+    let url = this.getUrl(model);
 
     console.log("Calling: " + url);
     this.http.get(url).subscribe(
-      e => this.renderRepos(e),
+      e => { this.renderRepos(e.json()); this.determineNumberOfPages(e.headers); },
       err => console.warn(`error: ${err}`),
       () => console.log("Complete")
     );
   }
 
-  private getUrl(): string{
-    let url = this.baseUrl;
-    url += this.submittedForm.ownerType == RepoOwnerType.USER ? 'users/' : 'orgs/';
-    url += this.submittedForm.name + '/repos';
-    url += '?page=' + this.activePage + '&per_page=10';
-    
-    if(this.submittedForm.sortTerm && this.submittedForm.sortTerm.apiCode) url += '&sort=' + this.submittedForm.sortTerm.apiCode + "&direction=" + this.submittedForm.sortDirection;    
-    if(this.submittedForm.filterType) url += '&type=' + this.submittedForm.filterType.apiCode;
-
-    return url;
+  private renderRepos(repos: IGithubRepo[]) {
+    this.repos = repos;
   }
 
-
-  renderRepos(response: Response) {
-    this.results = response.json();
-    console.log(this.results);
-
-    let linkHeaders = response.headers.get('link');
-
-    if (linkHeaders) {
-      let lastPageLink = response.headers.get('link').split(',').find(l => l.indexOf('rel="last"') > -1);
-
-      if (lastPageLink) {
-        this.numberOfPages = parseInt(lastPageLink[lastPageLink.indexOf("page=") + "page=".length]);
-      }
-    } else {
-      this.numberOfPages = 1;
-    }
-
-  }
-
-  ownerTypeChange($event: RepoOwnerType) {
-    this.formModel.ownerType = $event;
-    this.setAvailableFilterTypes();
-  }
-
-  setAvailableFilterTypes(){
+  private setAvailableFilterTypes(){
     this.availableFilterTypes = this.formModel.ownerType == RepoOwnerType.USER ? this.userFilterTypes : this.orgFilterTypes;
     this.formModel.filterType = this.availableFilterTypes[0];
   }
 
-  selectPage(newPage: number) {
-    this.activePage = newPage;
-    this.getRepos();
+  private determineNumberOfPages(headers: Headers){
+    let linkHeaders = headers.get('link');
+    
+    if (linkHeaders) {
+      let lastPageLink = linkHeaders.split(',').find(l => l.indexOf('rel="last"') > -1);
+
+      if (lastPageLink) {
+        let numPagesStart = lastPageLink.indexOf("page=") + "page=".length;
+        let numPagesEnd = lastPageLink.substring(numPagesStart).indexOf('&') + numPagesStart;
+        this.numberOfPages = parseInt(lastPageLink.substring(numPagesStart, numPagesEnd));
+      }
+
+    } else {
+      this.numberOfPages = 1;
+    }
+  }
+
+  private getUrl(model: FormModel): string{
+    let url = this.baseUrl;
+    url += model.ownerType == RepoOwnerType.USER ? 'users/' : 'orgs/';
+    url += model.name + '/repos';
+    url += '?page=' + this.activePage + '&per_page=10';
+    
+    if(model.sortTerm && model.sortTerm.apiCode) url += '&sort=' + model.sortTerm.apiCode + "&direction=" + model.sortDirection;    
+    
+    if(model.filterType) url += '&type=' + model.filterType.apiCode;
+
+    return url;
   }
 }
 
@@ -164,8 +183,7 @@ export class Column {
   constructor(
     public id: string,
     public type: string,
-    public header: string,
-    public sortTerm?: string
+    public header: string
   ) { }
 }
 
